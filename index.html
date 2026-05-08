@@ -67,8 +67,17 @@ textarea.admin-input{resize:vertical;min-height:60px;}
 .source-tab.active{border-color:var(--accent);background:rgba(255,45,85,.12);color:var(--white);}
 .help-box{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:12px;padding:12px 14px;font-size:12px;color:rgba(255,255,255,.65);line-height:1.7;margin-bottom:14px;}
 .help-box strong{color:var(--white);}
+.upload-zone{width:100%;min-height:120px;border:2px dashed rgba(255,45,85,.4);border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;cursor:pointer;margin-bottom:14px;background:rgba(255,45,85,.05);transition:.2s;padding:20px;}
+.upload-zone:active{background:rgba(255,45,85,.12);}
+.upload-zone .upload-icon{font-size:40px;}
+.upload-zone .upload-text{font-size:14px;font-weight:600;color:var(--white);}
+.upload-zone .upload-sub{font-size:11px;color:var(--muted);}
+#file-input{display:none;}
+.upload-progress{width:100%;height:6px;background:rgba(255,255,255,.1);border-radius:3px;margin-bottom:14px;display:none;}
+.upload-progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:3px;width:0%;transition:width .3s;}
+.upload-status{font-size:12px;color:var(--muted);text-align:center;margin-bottom:10px;display:none;}
 .preview-thumb{width:100%;height:150px;border-radius:12px;overflow:hidden;background:#111;display:flex;align-items:center;justify-content:center;margin-bottom:14px;font-size:40px;color:var(--muted);}
-.preview-thumb video,.preview-thumb img{width:100%;height:100%;object-fit:cover;border:none;}
+.preview-thumb video,.preview-thumb img{width:100%;height:100%;object-fit:cover;}
 .preview-thumb iframe{width:100%;height:100%;border:none;}
 .admin-btns{display:flex;gap:10px;margin-top:8px;}
 .btn-cancel{flex:1;padding:13px;background:rgba(255,255,255,.07);border:1.5px solid var(--border);border-radius:13px;color:var(--white);font-size:15px;font-weight:600;cursor:pointer;font-family:var(--font-body);}
@@ -101,7 +110,6 @@ textarea.admin-input{resize:vertical;min-height:60px;}
 <body>
 
 <div id="toast"></div>
-
 <div id="loading">
   <div class="brand-big">SLIP</div>
   <div class="spinner"></div>
@@ -127,35 +135,43 @@ textarea.admin-input{resize:vertical;min-height:60px;}
   <p>Agrega <code style="background:rgba(255,255,255,.1);padding:2px 6px;border-radius:4px">?admin=1</code> a la URL<br>para subir tu primer video.</p>
 </div>
 
-<!-- ADMIN PANEL -->
 <div id="admin-overlay" onclick="handleOverlayClick(event)">
   <div id="admin-card" onclick="event.stopPropagation()">
     <div class="admin-title">⚡ SUBIR CONTENIDO</div>
-    <div class="admin-subtitle">Pega el enlace de tu video desde<br>Google Drive, Streamable u otra URL</div>
+    <div class="admin-subtitle">Sube un video desde tu galería<br>o pega un enlace externo</div>
 
     <div class="source-tabs">
-      <button class="source-tab active" onclick="setTab('drive')" id="tab-drive">📁 Google Drive</button>
-      <button class="source-tab" onclick="setTab('streamable')" id="tab-streamable">▶️ Streamable</button>
-      <button class="source-tab" onclick="setTab('direct')" id="tab-direct">🔗 URL directa</button>
+      <button class="source-tab active" onclick="setTab('upload')" id="tab-upload">📱 Galería</button>
+      <button class="source-tab" onclick="setTab('drive')" id="tab-drive">📁 Drive</button>
+      <button class="source-tab" onclick="setTab('direct')" id="tab-direct">🔗 URL</button>
     </div>
 
-    <div class="help-box" id="help-box">
-      <strong>Cómo usar Google Drive:</strong><br>
-      1. Sube tu video a Google Drive<br>
-      2. Clic derecho → <strong>Compartir → Obtener enlace</strong><br>
-      3. Cambia acceso a <strong>"Cualquier persona con el enlace"</strong><br>
-      4. Copia y pega el enlace aquí ↓
+    <div id="help-box" class="help-box">
+      <strong>Subir desde tu galería:</strong><br>
+      Toca el área de abajo para elegir un video de tu celular. Se sube automáticamente a Firebase ☁️
     </div>
 
-    <div class="admin-section">
-      <span class="admin-label" id="url-label">🔗 Enlace de Google Drive</span>
-      <input class="admin-input" type="url" id="inp-url"
-        placeholder="https://drive.google.com/file/d/..."
-        oninput="schedulePreview()">
-      <div class="url-status" id="url-status"></div>
+    <div id="upload-section">
+      <input type="file" id="file-input" accept="video/*,image/*">
+      <div class="upload-zone" onclick="document.getElementById('file-input').click()">
+        <div class="upload-icon">📲</div>
+        <div class="upload-text">Toca para elegir video</div>
+        <div class="upload-sub">MP4, MOV, AVI • máx 500MB</div>
+      </div>
+      <div class="upload-progress" id="upload-progress">
+        <div class="upload-progress-fill" id="upload-progress-fill"></div>
+      </div>
+      <div class="upload-status" id="upload-status"></div>
     </div>
 
-    <div class="preview-thumb" id="preview-thumb">🎬</div>
+    <div id="url-section" style="display:none">
+      <div class="admin-section">
+        <span class="admin-label" id="url-label">🔗 Enlace</span>
+        <input class="admin-input" type="url" id="inp-url" placeholder="https://..." oninput="schedulePreview()">
+        <div class="url-status" id="url-status"></div>
+      </div>
+      <div class="preview-thumb" id="preview-thumb">🎬</div>
+    </div>
 
     <div class="admin-section">
       <span class="admin-label">✏️ Título</span>
@@ -182,10 +198,10 @@ textarea.admin-input{resize:vertical;min-height:60px;}
   </div>
 </div>
 
-<!-- FIREBASE -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, orderBy, query, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, deleteDoc, doc, orderBy, query, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAj6NDVyT2-TqMuTGsne9CTkeldBECdTug",
@@ -193,311 +209,225 @@ const firebaseConfig = {
   projectId: "slip-app-4f6b9",
   storageBucket: "slip-app-4f6b9.firebasestorage.app",
   messagingSenderId: "918151265095",
-  appId: "1:918151265095:web:e216bc30ff6a134bbbaa62",
-  measurementId: "G-4W0W20L0TH"
+  appId: "1:918151265095:web:e216bc30ff6a134bbbaa62"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const storage = getStorage(app);
 
 const EMOJIS = ['🔥','❤️','😂','😮','👏','💯','🎉'];
-let videos = [];
-let idx = 0;
-let isAdmin = false;
-let ty = 0, tx = 0;
-let currentTab = 'drive';
+let videos = [], idx = 0, isAdmin = false, ty = 0, tx = 0;
+let currentTab = 'upload';
+let uploadedFileURL = null, uploadedStoragePath = null, uploadedMediaType = null;
 
-// ── INIT ──
-window.addEventListener('DOMContentLoaded', async () => {
+window.addEventListener('DOMContentLoaded', () => {
   isAdmin = new URLSearchParams(location.search).has('admin');
   if (isAdmin) document.getElementById('admin-btn').style.display = 'block';
   buildEmojiBar();
-  await loadVideos();
+  loadVideos();
   setupSwipe();
+  document.getElementById('file-input').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (file) await uploadFile(file);
+  });
 });
 
-// ── FIRESTORE ──
-async function loadVideos() {
-  try {
-    const q = query(collection(db, 'videos'), orderBy('ts', 'desc'));
-    onSnapshot(q, (snapshot) => {
-      videos = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      buildFeed();
-      document.getElementById('loading').style.display = 'none';
-    });
-  } catch(e) {
-    console.error(e);
+async function uploadFile(file) {
+  const isVideo = file.type.startsWith('video/');
+  const isImage = file.type.startsWith('image/');
+  if (!isVideo && !isImage) { showToast('⚠️ Solo videos e imágenes'); return; }
+  const pb = document.getElementById('upload-progress');
+  const pf = document.getElementById('upload-progress-fill');
+  const st = document.getElementById('upload-status');
+  const btn = document.getElementById('btn-publish');
+  pb.style.display = 'block'; st.style.display = 'block';
+  st.textContent = '⏳ Subiendo...'; btn.disabled = true;
+  const path = `videos/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+  const task = uploadBytesResumable(ref(storage, path), file);
+  task.on('state_changed',
+    snap => { const p = (snap.bytesTransferred/snap.totalBytes)*100; pf.style.width=p+'%'; st.textContent=`⏳ Subiendo... ${Math.round(p)}%`; },
+    err => { showToast('⚠️ Error: '+err.message); pb.style.display='none'; st.style.display='none'; btn.disabled=false; },
+    async () => {
+      const url = await getDownloadURL(task.snapshot.ref);
+      uploadedFileURL = url; uploadedStoragePath = path;
+      uploadedMediaType = isVideo ? 'video' : 'image';
+      pf.style.width = '100%';
+      st.textContent = '✅ ¡Listo! Escribe el título y publica.';
+      btn.disabled = false;
+      const zone = document.querySelector('.upload-zone');
+      zone.innerHTML = isVideo
+        ? `<video src="${url}" muted autoplay loop playsinline style="width:100%;height:120px;object-fit:cover;border-radius:12px"></video>`
+        : `<img src="${url}" style="width:100%;height:120px;object-fit:cover;border-radius:12px">`;
+    }
+  );
+}
+
+function loadVideos() {
+  onSnapshot(query(collection(db,'videos'), orderBy('ts','desc')), snap => {
+    videos = snap.docs.map(d => ({id:d.id,...d.data()}));
+    buildFeed();
     document.getElementById('loading').style.display = 'none';
-    showToast('⚠️ Error al cargar videos');
-  }
+  });
 }
-
-async function saveVideo(vid) {
-  const docRef = await addDoc(collection(db, 'videos'), vid);
-  return docRef.id;
-}
-
-async function removeVideo(id) {
-  await deleteDoc(doc(db, 'videos', id));
-}
-
-// ── URL HELPERS ──
-function parseDrive(url) {
-  const m1 = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-  const m2 = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-  const id = m1 ? m1[1] : m2 ? m2[1] : null;
-  if (!id) return null;
-  return { mediaType: 'drive', embedUrl: `https://drive.google.com/file/d/${id}/preview` };
-}
-function parseStreamable(url) {
-  const m = url.match(/streamable\.com\/([a-zA-Z0-9]+)/);
-  if (!m) return null;
-  return { mediaType: 'streamable', embedUrl: `https://streamable.com/e/${m[1]}` };
-}
-function parseDirect(url) {
-  const u = url.toLowerCase().split('?')[0];
-  if (/\.(jpg|jpeg|png|gif|webp|avif)$/.test(u)) return { mediaType: 'image', src: url };
-  return { mediaType: 'video', src: url };
-}
-function parseUrl(url) {
-  if (!url) return null;
-  url = url.trim();
-  if (currentTab === 'drive' || url.includes('drive.google.com')) return parseDrive(url);
-  if (currentTab === 'streamable' || url.includes('streamable.com')) return parseStreamable(url);
-  return parseDirect(url);
-}
-
-function mediaHTML(vid) {
-  if (vid.mediaType === 'drive') return `<iframe src="${x(vid.embedUrl)}" allowfullscreen allow="autoplay" style="width:100%;height:100%;border:none;pointer-events:none"></iframe>`;
-  if (vid.mediaType === 'streamable') return `<iframe src="${x(vid.embedUrl)}" allowfullscreen allow="autoplay" style="width:100%;height:100%;border:none;pointer-events:none"></iframe>`;
-  if (vid.mediaType === 'video') return `<video src="${x(vid.src)}" loop playsinline autoplay muted style="width:100%;height:100%;object-fit:cover"></video>`;
-  if (vid.mediaType === 'image') return `<img src="${x(vid.src)}" style="width:100%;height:100%;object-fit:cover">`;
-  return `<div class="placeholder">🎬</div>`;
-}
-
-// ── TABS ──
-const HELPS = {
-  drive: `<strong>Google Drive:</strong><br>1. Sube el video a Drive<br>2. Clic derecho → <strong>Compartir → Obtener enlace</strong><br>3. Acceso: <strong>"Cualquier persona con el enlace"</strong><br>4. Pega el enlace aquí`,
-  streamable: `<strong>Streamable:</strong><br>1. Ve a <strong>streamable.com</strong> y crea cuenta gratis<br>2. Sube tu video<br>3. Copia la URL del video<br>4. Pégala aquí — funciona perfecto ✅`,
-  direct: `<strong>URL directa:</strong><br>Cualquier enlace público que termine en<br>.mp4, .webm, .mov, .jpg, .png, etc.`
-};
-const PLACEHOLDERS = {
-  drive: 'https://drive.google.com/file/d/ABC123/view',
-  streamable: 'https://streamable.com/abc123',
-  direct: 'https://ejemplo.com/video.mp4'
-};
-const URLABELS = {
-  drive: '🔗 Enlace de Google Drive',
-  streamable: '▶️ Enlace de Streamable',
-  direct: '🔗 URL del archivo'
-};
 
 window.setTab = function(t) {
   currentTab = t;
-  ['drive','streamable','direct'].forEach(k => document.getElementById('tab-'+k).classList.toggle('active', k===t));
-  document.getElementById('help-box').innerHTML = HELPS[t];
-  document.getElementById('inp-url').placeholder = PLACEHOLDERS[t];
-  document.getElementById('url-label').textContent = URLABELS[t];
-  document.getElementById('inp-url').value = '';
-  document.getElementById('url-status').className = 'url-status';
-  document.getElementById('preview-thumb').innerHTML = '🎬';
+  ['upload','drive','direct'].forEach(k => document.getElementById('tab-'+k).classList.toggle('active',k===t));
+  const helps = {
+    upload: '<strong>Subir desde tu galería:</strong><br>Toca el área de abajo para elegir un video de tu celular ☁️',
+    drive: '<strong>Google Drive:</strong><br>Compartir → "Cualquier persona con el enlace" → pega aquí',
+    direct: '<strong>URL directa:</strong><br>Enlace público que termine en .mp4, .webm, .mov, etc.'
+  };
+  document.getElementById('help-box').innerHTML = helps[t];
+  document.getElementById('upload-section').style.display = t==='upload' ? 'block' : 'none';
+  document.getElementById('url-section').style.display = t!=='upload' ? 'block' : 'none';
+  if (t!=='upload') {
+    document.getElementById('inp-url').placeholder = t==='drive' ? 'https://drive.google.com/file/d/...' : 'https://ejemplo.com/video.mp4';
+    document.getElementById('url-label').textContent = t==='drive' ? '🔗 Google Drive' : '🔗 URL directa';
+  }
 };
 
-let previewTimer;
-window.schedulePreview = function() { clearTimeout(previewTimer); previewTimer = setTimeout(doPreview, 700); };
-function doPreview() {
+let pt;
+window.schedulePreview = () => { clearTimeout(pt); pt = setTimeout(() => {
   const url = document.getElementById('inp-url').value.trim();
   const st = document.getElementById('url-status');
   const pv = document.getElementById('preview-thumb');
-  if (!url) { st.className = 'url-status'; pv.innerHTML = '🎬'; return; }
+  if (!url) { st.className='url-status'; pv.innerHTML='🎬'; return; }
   const m = parseUrl(url);
-  if (!m) { st.className = 'url-status err'; st.textContent = '❌ No se reconoce este enlace'; pv.innerHTML = '🎬'; return; }
-  st.className = 'url-status ok'; st.textContent = '✅ Enlace válido';
-  if (m.mediaType === 'drive' || m.mediaType === 'streamable') pv.innerHTML = `<iframe src="${m.embedUrl}" allowfullscreen allow="autoplay" style="width:100%;height:100%;border:none"></iframe>`;
-  else if (m.mediaType === 'video') pv.innerHTML = `<video src="${m.src}" muted autoplay loop playsinline style="width:100%;height:100%;object-fit:cover"></video>`;
-  else if (m.mediaType === 'image') pv.innerHTML = `<img src="${m.src}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.innerHTML='⚠️ No cargó'">`;
+  if (!m) { st.className='url-status err'; st.textContent='❌ Enlace no reconocido'; pv.innerHTML='🎬'; return; }
+  st.className='url-status ok'; st.textContent='✅ Enlace válido';
+  if (m.mediaType==='drive') pv.innerHTML=`<iframe src="${m.embedUrl}" allowfullscreen allow="autoplay" style="width:100%;height:100%;border:none"></iframe>`;
+  else if (m.mediaType==='video') pv.innerHTML=`<video src="${m.src}" muted autoplay loop playsinline style="width:100%;height:100%;object-fit:cover"></video>`;
+  else pv.innerHTML=`<img src="${m.src}" style="width:100%;height:100%;object-fit:cover">`;
+}, 700); };
+
+function parseUrl(url) {
+  if (!url) return null; url = url.trim();
+  if (url.includes('drive.google.com')) {
+    const m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (!m) return null;
+    return {mediaType:'drive', embedUrl:`https://drive.google.com/file/d/${m[1]}/preview`};
+  }
+  const u = url.toLowerCase().split('?')[0];
+  if (/\.(jpg|jpeg|png|gif|webp)$/.test(u)) return {mediaType:'image', src:url};
+  return {mediaType:'video', src:url};
 }
 
-// ── PUBLISH ──
+function mediaHTML(v) {
+  if (v.mediaType==='drive') return `<iframe src="${x(v.embedUrl)}" allowfullscreen allow="autoplay" style="width:100%;height:100%;border:none;pointer-events:none"></iframe>`;
+  if (v.mediaType==='video') return `<video src="${x(v.src)}" loop playsinline autoplay muted style="width:100%;height:100%;object-fit:cover"></video>`;
+  if (v.mediaType==='image') return `<img src="${x(v.src)}" style="width:100%;height:100%;object-fit:cover">`;
+  return `<div class="placeholder">🎬</div>`;
+}
+
 window.publishVideo = async function() {
-  const url = document.getElementById('inp-url').value.trim();
   const title = document.getElementById('inp-title').value.trim();
-  if (!url) { showToast('⚠️ Pega un enlace'); return; }
   if (!title) { showToast('⚠️ Escribe un título'); return; }
-  const m = parseUrl(url);
-  if (!m) { showToast('⚠️ Enlace no válido'); return; }
-  const btn = document.getElementById('btn-publish');
-  btn.disabled = true; btn.textContent = '⏳ Guardando...';
-  try {
-    const vid = {
-      title,
-      desc: document.getElementById('inp-desc').value.trim(),
-      music: document.getElementById('inp-music').value.trim(),
-      mediaType: m.mediaType,
-      src: m.src || null,
-      embedUrl: m.embedUrl || null,
-      ts: Date.now()
-    };
-    await saveVideo(vid);
-    showToast('🚀 ¡Publicado!');
-    resetForm();
-    closeAdmin();
-    idx = 0;
-  } catch(e) {
-    showToast('⚠️ Error al publicar');
+  let vid;
+  if (currentTab==='upload') {
+    if (!uploadedFileURL) { showToast('⚠️ Primero sube un video'); return; }
+    vid = {title, desc:document.getElementById('inp-desc').value.trim(), music:document.getElementById('inp-music').value.trim(), mediaType:uploadedMediaType, src:uploadedFileURL, storagePath:uploadedStoragePath, embedUrl:null, ts:Date.now()};
+  } else {
+    const url = document.getElementById('inp-url').value.trim();
+    if (!url) { showToast('⚠️ Pega un enlace'); return; }
+    const m = parseUrl(url);
+    if (!m) { showToast('⚠️ Enlace no válido'); return; }
+    vid = {title, desc:document.getElementById('inp-desc').value.trim(), music:document.getElementById('inp-music').value.trim(), mediaType:m.mediaType, src:m.src||null, storagePath:null, embedUrl:m.embedUrl||null, ts:Date.now()};
   }
-  btn.disabled = false; btn.textContent = '🚀 Publicar';
+  const btn = document.getElementById('btn-publish');
+  btn.disabled=true; btn.textContent='⏳ Publicando...';
+  try { await addDoc(collection(db,'videos'), vid); showToast('🚀 ¡Publicado!'); resetForm(); closeAdmin(); idx=0; }
+  catch(e) { showToast('⚠️ Error: '+e.message); }
+  btn.disabled=false; btn.textContent='🚀 Publicar';
 };
 
 function resetForm() {
-  document.getElementById('inp-url').value = '';
-  document.getElementById('inp-title').value = '';
-  document.getElementById('inp-desc').value = '';
-  document.getElementById('inp-music').value = '';
-  document.getElementById('preview-thumb').innerHTML = '🎬';
-  document.getElementById('url-status').className = 'url-status';
-  setTab('drive');
+  ['inp-url','inp-title','inp-desc','inp-music'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('preview-thumb').innerHTML='🎬';
+  document.getElementById('url-status').className='url-status';
+  document.getElementById('upload-progress').style.display='none';
+  document.getElementById('upload-status').style.display='none';
+  document.getElementById('upload-progress-fill').style.width='0%';
+  document.getElementById('file-input').value='';
+  uploadedFileURL=null; uploadedStoragePath=null; uploadedMediaType=null;
+  document.querySelector('.upload-zone').innerHTML='<div class="upload-icon">📲</div><div class="upload-text">Toca para elegir video</div><div class="upload-sub">MP4, MOV, AVI • máx 500MB</div>';
+  setTab('upload');
 }
 
-// ── DELETE ──
-window.deleteVideo = async function(id) {
-  if (!confirm('¿Eliminar este video?')) return;
-  try {
-    await removeVideo(id);
-    if (idx >= videos.length) idx = Math.max(0, videos.length - 1);
-    buildAdminList();
-    showToast('🗑️ Eliminado');
-  } catch(e) {
-    showToast('⚠️ Error al eliminar');
-  }
+window.deleteVideo = async function(id, sp) {
+  if (!confirm('¿Eliminar?')) return;
+  await deleteDoc(doc(db,'videos',id));
+  if (sp) try { await deleteObject(ref(storage,sp)); } catch(e) {}
+  if (idx>=videos.length) idx=Math.max(0,videos.length-1);
+  buildAdminList(); showToast('🗑️ Eliminado');
 };
 
-// ── EMOJI BAR ──
 function buildEmojiBar() {
-  document.getElementById('emoji-row').innerHTML = EMOJIS.map(e =>
-    `<div class="emoji-btn" onclick="reactEmoji('${e}',event)"><span class="emoji-face">${e}</span></div>`
-  ).join('');
+  document.getElementById('emoji-row').innerHTML = EMOJIS.map(e=>`<div class="emoji-btn" onclick="reactEmoji('${e}',event)"><span class="emoji-face">${e}</span></div>`).join('');
 }
-window.reactEmoji = function(emoji, ev) {
-  const r = ev.currentTarget.getBoundingClientRect();
-  burst(emoji, r.left + r.width/2, r.top);
-};
-function burst(emoji, bx, by) {
-  for (let i = 0; i < 3; i++) setTimeout(() => {
-    const el = document.createElement('div');
-    el.className = 'burst'; el.textContent = emoji;
-    el.style.left = (bx + (Math.random()-.5)*80 - 24) + 'px';
-    el.style.top = (by - 20) + 'px';
-    el.style.animationDuration = (.8 + Math.random()*.5) + 's';
-    document.body.appendChild(el);
-    setTimeout(() => el.remove(), 1300);
-  }, i * 80);
+window.reactEmoji = function(e,ev) { const r=ev.currentTarget.getBoundingClientRect(); burst(e,r.left+r.width/2,r.top); };
+function burst(e,bx,by) {
+  for(let i=0;i<3;i++) setTimeout(()=>{
+    const el=document.createElement('div'); el.className='burst'; el.textContent=e;
+    el.style.left=(bx+(Math.random()-.5)*80-24)+'px'; el.style.top=(by-20)+'px';
+    el.style.animationDuration=(.8+Math.random()*.5)+'s';
+    document.body.appendChild(el); setTimeout(()=>el.remove(),1300);
+  },i*80);
 }
 
-// ── FEED ──
 function buildFeed() {
-  const feed = document.getElementById('feed');
-  feed.innerHTML = '';
-  const empty = document.getElementById('empty');
-  if (!videos.length) { empty.style.display = 'flex'; document.getElementById('dots').innerHTML = ''; return; }
-  empty.style.display = 'none';
-  videos.forEach((vid, i) => {
-    const slide = document.createElement('div');
-    slide.className = 'slide'; slide.id = 'slide-' + i;
-    slide.style.transform = i === 0 ? 'translateY(0%)' : 'translateY(100%)';
-    slide.innerHTML = `
-      <div class="slide-media">${mediaHTML(vid)}</div>
-      <div class="grad-top"></div><div class="grad-bot"></div>
-      <div class="v-info">
-        <div class="v-title">${x(vid.title)}</div>
-        ${vid.desc ? `<div class="v-desc">${x(vid.desc)}</div>` : ''}
-        ${vid.music ? `<div class="v-music"><span class="music-note">🎵</span> ${x(vid.music)}</div>` : ''}
-      </div>
-      <div class="v-side">
-        <div class="side-btn" onclick="reactEmoji('❤️',event)"><div class="side-icon">❤️</div></div>
-        <div class="side-btn" onclick="reactEmoji('🔥',event)"><div class="side-icon">🔥</div></div>
-        <div class="side-btn"><div class="disc">🎵</div></div>
-      </div>`;
-    let lt = 0;
-    slide.addEventListener('touchend', ev => {
-      const now = Date.now();
-      if (now - lt < 280) { const t = ev.changedTouches[0]; burst('❤️', t.clientX, t.clientY); }
-      lt = now;
-    });
-    slide.addEventListener('dblclick', ev => { burst('❤️', ev.clientX, ev.clientY); });
-    feed.appendChild(slide);
+  const feed=document.getElementById('feed'); feed.innerHTML='';
+  const empty=document.getElementById('empty');
+  if (!videos.length) { empty.style.display='flex'; document.getElementById('dots').innerHTML=''; return; }
+  empty.style.display='none';
+  videos.forEach((v,i)=>{
+    const s=document.createElement('div'); s.className='slide'; s.id='slide-'+i;
+    s.style.transform=i===0?'translateY(0%)':'translateY(100%)';
+    s.innerHTML=`<div class="slide-media">${mediaHTML(v)}</div><div class="grad-top"></div><div class="grad-bot"></div>
+      <div class="v-info"><div class="v-title">${x(v.title)}</div>${v.desc?`<div class="v-desc">${x(v.desc)}</div>`:''}${v.music?`<div class="v-music"><span class="music-note">🎵</span> ${x(v.music)}</div>`:''}</div>
+      <div class="v-side"><div class="side-btn" onclick="reactEmoji('❤️',event)"><div class="side-icon">❤️</div></div><div class="side-btn" onclick="reactEmoji('🔥',event)"><div class="side-icon">🔥</div></div><div class="side-btn"><div class="disc">🎵</div></div></div>`;
+    let lt=0;
+    s.addEventListener('touchend',ev=>{const now=Date.now();if(now-lt<280){const t=ev.changedTouches[0];burst('❤️',t.clientX,t.clientY);}lt=now;});
+    feed.appendChild(s);
   });
   buildDots();
 }
 
-function buildDots() {
-  document.getElementById('dots').innerHTML = videos.map((_,i) =>
-    `<div class="dot${i===idx?' active':''}" id="dot-${i}"></div>`
-  ).join('');
-}
-function updateDots() {
-  document.querySelectorAll('.dot').forEach((d,i) => d.classList.toggle('active', i===idx));
-}
+function buildDots(){document.getElementById('dots').innerHTML=videos.map((_,i)=>`<div class="dot${i===idx?' active':''}" id="dot-${i}"></div>`).join('');}
+function updateDots(){document.querySelectorAll('.dot').forEach((d,i)=>d.classList.toggle('active',i===idx));}
 
-// ── SWIPE ──
-function setupSwipe() {
-  const feed = document.getElementById('feed');
-  feed.addEventListener('touchstart', e => { ty = e.touches[0].clientY; tx = e.touches[0].clientX; }, {passive:true});
-  feed.addEventListener('touchend', e => {
-    const dy = ty - e.changedTouches[0].clientY, dx = Math.abs(tx - e.changedTouches[0].clientX);
-    if (Math.abs(dy) > 60 && dx < 80) { dy > 0 ? goTo(idx+1) : goTo(idx-1); }
-  }, {passive:true});
-  let wl = false;
-  feed.addEventListener('wheel', e => {
-    if (wl) return; wl = true;
-    if (e.deltaY > 30) goTo(idx+1); else if (e.deltaY < -30) goTo(idx-1);
-    setTimeout(() => wl = false, 600);
-  }, {passive:true});
-  document.addEventListener('keydown', e => {
-    if (e.key === 'ArrowDown') goTo(idx+1);
-    if (e.key === 'ArrowUp') goTo(idx-1);
-  });
+function setupSwipe(){
+  const feed=document.getElementById('feed');
+  feed.addEventListener('touchstart',e=>{ty=e.touches[0].clientY;tx=e.touches[0].clientX;},{passive:true});
+  feed.addEventListener('touchend',e=>{const dy=ty-e.changedTouches[0].clientY,dx=Math.abs(tx-e.changedTouches[0].clientX);if(Math.abs(dy)>60&&dx<80){dy>0?goTo(idx+1):goTo(idx-1);}},{passive:true});
+  let wl=false;
+  feed.addEventListener('wheel',e=>{if(wl)return;wl=true;if(e.deltaY>30)goTo(idx+1);else if(e.deltaY<-30)goTo(idx-1);setTimeout(()=>wl=false,600);},{passive:true});
+  document.addEventListener('keydown',e=>{if(e.key==='ArrowDown')goTo(idx+1);if(e.key==='ArrowUp')goTo(idx-1);});
 }
-function goTo(i) {
-  if (i < 0 || i >= videos.length) return;
-  const dir = i > idx ? -1 : 1;
-  const old = document.getElementById('slide-' + idx);
-  idx = i;
-  const nw = document.getElementById('slide-' + idx);
-  if (old) old.style.transform = `translateY(${dir * -100}%)`;
-  if (nw) nw.style.transform = 'translateY(0%)';
+function goTo(i){
+  if(i<0||i>=videos.length)return;
+  const dir=i>idx?-1:1;
+  const old=document.getElementById('slide-'+idx); idx=i;
+  const nw=document.getElementById('slide-'+idx);
+  if(old)old.style.transform=`translateY(${dir*-100}%)`;
+  if(nw)nw.style.transform='translateY(0%)';
   updateDots();
 }
 
-// ── ADMIN ──
-window.openAdmin = function() { document.getElementById('admin-overlay').classList.add('open'); buildAdminList(); };
-window.closeAdmin = function() { document.getElementById('admin-overlay').classList.remove('open'); };
-window.handleOverlayClick = function(e) { if (e.target === document.getElementById('admin-overlay')) closeAdmin(); };
-function buildAdminList() {
-  const list = document.getElementById('admin-vid-list');
-  if (!videos.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px;text-align:center;padding:12px">No hay videos aún</p>'; return; }
-  const icons = { drive:'📁', streamable:'▶️', image:'🖼️', video:'🎬' };
-  const labels = { drive:'Google Drive', streamable:'Streamable', image:'Imagen directa', video:'Video directo' };
-  list.innerHTML = videos.map(v => `
-    <div class="admin-vid-item">
-      <div class="admin-vid-thumb">${icons[v.mediaType]||'🎬'}</div>
-      <div class="admin-vid-info">
-        <div class="admin-vid-title">${x(v.title)}</div>
-        <div class="admin-vid-meta">${labels[v.mediaType]||v.mediaType}</div>
-      </div>
-      <button class="btn-delete" onclick="deleteVideo('${v.id}')">Eliminar</button>
-    </div>`).join('');
+window.openAdmin=()=>{document.getElementById('admin-overlay').classList.add('open');buildAdminList();};
+window.closeAdmin=()=>document.getElementById('admin-overlay').classList.remove('open');
+window.handleOverlayClick=e=>{if(e.target===document.getElementById('admin-overlay'))closeAdmin();};
+function buildAdminList(){
+  const list=document.getElementById('admin-vid-list');
+  if(!videos.length){list.innerHTML='<p style="color:var(--muted);font-size:13px;text-align:center;padding:12px">No hay videos aún</p>';return;}
+  list.innerHTML=videos.map(v=>`<div class="admin-vid-item"><div class="admin-vid-thumb">${v.mediaType==='image'?'🖼️':'🎬'}</div><div class="admin-vid-info"><div class="admin-vid-title">${x(v.title)}</div><div class="admin-vid-meta">${v.mediaType==='drive'?'Google Drive':'Video subido'}</div></div><button class="btn-delete" onclick="deleteVideo('${v.id}','${v.storagePath||''}')">Eliminar</button></div>`).join('');
 }
 
-// ── UTILS ──
-function x(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function x(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 let toastT;
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2800);
-}
-window.showToast = showToast;
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2800);}
+window.showToast=showToast;
 </script>
 </body>
 </html>
